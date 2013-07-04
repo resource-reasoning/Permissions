@@ -55,432 +55,26 @@ Module ShallowPermissionProperties (Import SPT : ShallowPermissionTheory).
 
 End ShallowPermissionProperties.
 
+Set Implicit Arguments.
+
+
 Section DeepPermissions.
 
-  Inductive dpf :=
-    | dpf_false : dpf
-    | dpf_and : dpf -> dpf -> dpf
-    | dpf_or : dpf -> dpf -> dpf
-    | dpf_not : dpf -> dpf
-    | dpf_eq : nat -> nat -> dpf
-    | dpf_C : nat -> nat -> nat -> dpf
-    | dpf_all : dpf -> dpf
-    | dpf_ex : dpf -> dpf.
-
-  Inductive eval_tree :=
-    | some : eval_tree
-    | none : eval_tree
-    | branch : eval_tree.
+  Inductive dpf : nat -> Set :=
+    | dpf_false : forall n, dpf n
+    | dpf_and : forall n, dpf n -> dpf n -> dpf n
+    | dpf_or : forall n, dpf n -> dpf n -> dpf n
+    | dpf_not : forall n, dpf n -> dpf n
+    | dpf_eq : forall n, forall n0, n > n0 -> forall n1, n > n1 -> dpf n
+    | dpf_C : forall n, forall n0, n > n0 -> forall n1, n > n1 -> forall n2, n > n2 -> dpf n
+    | dpf_all : forall n, dpf (S n) -> dpf n
+    | dpf_ex : forall n, dpf (S n) -> dpf n.
 
 End DeepPermissions.
 
-Set Implicit Arguments.
-
-Require Import List Eqdep_dec.
-
-Definition llist A n := {l : list A | length l = n}.
-
-Lemma ll_proj_eq A n : forall (l l' : llist A n), proj1_sig l = proj1_sig l' -> l = l'.
- intros.
- destruct l.
- destruct l'.
- simpl in H.
- subst.
- f_equal.
- apply eq_proofs_unicity.
- decide equality.
-Defined.
-
-  Import Plus.
-
-
-Program Definition llrev A n (l : llist A n) : llist A n := 
-  rev l.
-Obligation 1.
- destruct l.
- revert n e.
- induction x; intros.
-  simpl in *; subst; reflexivity.
-  simpl in *; subst.
-  rewrite app_length.
-  simpl.
-  rewrite (IHx (length x)) by reflexivity.
-  rewrite <- plus_Snm_nSm.
-  rewrite plus_0_r.
-  reflexivity.
-Qed.
-
-Program Definition llcons A n (x : A) (xs : llist A n) : llist A (S n) := cons x xs.
-Obligation 1.
- destruct xs; subst.
- reflexivity.
-Qed.
-
-Program Definition llnil A : llist A 0 := nil.
-
-Program Definition llhead A n (l : llist A (S n)) : A :=
-  match l with
-  | nil => _
-  | cons x xs => x
-  end.
-Obligation 1.
- destruct l.
- simpl in *.
- subst; inversion e.
-Qed.
-
-Program Definition lltail A n (l : llist A (S n)) : llist A n :=
-  match l with
-  | nil => _
-  | cons x xs => xs
-  end.
-Obligation 1.
- destruct l; simpl in *; subst.
- inversion e.
-Qed.
-Obligation 2.
-  revert l x xs Heq_l.
-  induction n; intuition;
-   destruct l; simpl in *; subst;
-   inversion e; reflexivity.
-Qed.
-
-Program Definition llsnoc A n (l : llist A n) a : llist A (S n) :=
-  l ++ (a :: nil).
-Obligation 1.
- rewrite app_length.
- rewrite plus_comm.
- destruct l.
- subst; reflexivity.
-Qed.
-
-Program Fixpoint llcohead A n (l : llist A (S n)) : A :=
-  match l with
-  | nil => _
-  | cons x xs => match n with
-     | O => x
-     | S m => llcohead (n:=m) xs end
-  end.
-Obligation 1.
- destruct l; simpl in *; subst.
- inversion e.
-Qed.
-Obligation 2.
- destruct l; simpl in *; subst.
- inversion e; auto.
-Qed.
-
-
-Program Fixpoint llcotail A n (l : llist A (S n)) : llist A n :=
-  match l with
-  | nil => _
-  | cons x xs => match n with
-    | O => nil
-    | S m => cons x (llcotail (n:=m) xs) end
-  end.
-Next Obligation.
- destruct l; simpl in *; subst.
- inversion e.
-Qed.
-Next Obligation.
- destruct l; simpl in *; subst.
- inversion e; auto.
-Qed.
-
-
- 
-
-
-  Hint Resolve ll_proj_eq.
-  Lemma llist_head_tail A n (l : llist A (S n)) : llcons (llhead l) (lltail l) = l.
-   destruct l.
-   destruct x.
-    inversion e.
-    auto with *.
-  Defined.
-
-  Hint Resolve llist_head_tail.
-
-  Lemma llist_ind A : forall P : (forall n, llist A n -> Type),
-    P O (llnil A) ->
-    (forall n l, P n l -> forall a, P (S n) (llcons a l)) ->
-    (forall n l, P n l).
-   intros.
-   induction n.
-    destruct l.
-    destruct x; subst.
-     match goal with |- P 0 ?x => replace x with (llnil A); auto end.
-     inversion e.
-   
-    replace l with (llcons (llhead l) (lltail l)); auto.
-  Defined.    
-
-  Lemma llist_ind0 A : forall P : (llist A 0 -> Type),
-    P (llnil A) -> (forall l, P l).
-   intros.
-   destruct l.
-    destruct x; subst.
-     match goal with |- P ?K => replace K with (llnil A); auto end.
-     inversion e.
-  Defined.
-
-  Lemma llist_indS A : forall P : (forall n, llist A (S n) -> Type),
-    (forall a,  P O (llcons a (llnil A))) ->
-    (forall n l, P n l -> forall a, P (S n) (llcons a l)) ->
-    (forall n l, P n l).
-   intros.
-   induction n.
-    destruct l.
-    destruct x; subst.
-     inversion e.
-     match goal with |- P 0 ?x => replace x with (llcons a (llnil A)); auto end.
-     inversion e.
-      destruct x.
-       auto.
-       inversion H0.
-   
-    replace l with (llcons (llhead l) (lltail l)); auto.
-  Defined.
-
-  Lemma llist_cotail A n a (l : llist A (S n)) :
-      llcotail (llcons a l) = llcons a (llcotail l).
-   revert a.
-   revert n l.
-   refine (llist_indS (fun l => _) _ _); intros.
-    auto.
-    rewrite H.
-    apply ll_proj_eq.
-    simpl.
-    repeat f_equal.
-    apply ll_proj_eq; auto.
-  Qed.
-
-  Lemma llist_cohead A n a (l : llist A (S n)) :
-      llcohead (llcons a l) = llcohead l.
-   destruct l.
-   simpl.
-   f_equal.
-   apply ll_proj_eq.
-   reflexivity.
-  Qed.
-
-  Lemma llist_snoc_cons A n a b (l : llist A n) :
-     llsnoc (llcons a l) b = llcons a (llsnoc l b).
-   revert a b.
-   induction l using llist_ind; intros.
-    auto.
-    auto.
-  Qed.
-
-  Lemma llist_cohead_cotail A n (l : llist A (S n)) :
-     llsnoc (llcotail l) (llcohead l) = l.
-   revert n l;
-   refine (llist_indS (fun l => _) _ _); intros.
-    auto.
-    rewrite llist_cotail.
-    rewrite llist_snoc_cons.
-    f_equal.
-    auto.
-    rewrite llist_cohead.
-    trivial.
-  Qed.
-
-Lemma llist_snoc_ind A : forall P : (forall n, llist A n -> Type),
-    P O (llnil A) ->
-    (forall n l, P n l -> forall a, P (S n) (llsnoc l a)) ->
-    (forall n l, P n l).
- intros.
- induction n.
-  destruct l.
-  destruct x; subst.
-   match goal with |- P 0 ?x => replace x with (llnil A); auto end.
-   inversion e.
-
-  rewrite <- llist_cohead_cotail.
-  firstorder.
-Qed.
-
-
-Ltac llniltac := 
- match goal with L : llist _ 0 |- _ => revert L; refine (llist_ind0 (fun L => _) _) end.
-
-
-
-Lemma ll_snoc_rev_cons A n (l : llist A n) a : llcons a (llrev l) = llrev (llsnoc l a).
- revert a.
- induction l using llist_ind.
-  auto.
-
-  intros.
-
-  apply ll_proj_eq.
-  simpl.
-  rewrite app_comm_cons.
-  f_equal.
-  generalize (IHl a0); intro.
-  inversion H.
-  firstorder.
-Qed.
- 
-
-
-(*
-
-Program Definition myl : llist nat 2 := 1 :: 2 :: nil.
-
-Compute (llsnoc myl 7).
-
-Compute (llhead (lltail myl)).
-
-Compute (proj1_sig (llrev myl)).
-*)
-
-(*
-Set Contextual Implicit Arguments.
-
-
-
-
-Inductive vector (A : Type) : nat -> Type :=
-  | vnil : vector A 0
-  | vcons : forall n, A -> vector A n -> vector A (S n)
-.
-
-
-Definition vrev A n (xs : vector A n) : forall m, vector A m -> vector A (n+m).
-induction xs; intros.
- exact X.
- replace (S n + m) with (n + S m).
- apply IHxs.
- exact (vcons a X).
- clear; induction n.
-  reflexivity.
-  simpl.
-  rewrite IHn.
-  reflexivity.
-Defined.
-(*
-Program Fixpoint vrev A n (xs : vector A n) : forall m, vector A m -> vector A (n+m) :=
-  fun m =>
-  match xs in vector _ i return vector A m -> vector A (i+m) with
-  | vnil => (fun (rs : vector A m) => rs)
-  | vcons i x xs' => fun rs => vrev xs' (vcons x rs)
-  end.
-*)
-
-Definition vreverse {A} n (xs : vector A n) : vector A n.
-  replace n with (n + 0).
-  exact (vrev xs (vnil A)).
-  clear; induction n; try reflexivity.
-   simpl; rewrite IHn; reflexivity.
-Defined.
-
-(*
-Program Definition vreverse {A} n (xs : vector A n) : vector A n := vrev xs (@vnil A).
-Compute (vreverse (vcons true (vcons false (vnil bool)))).
-*)
-
-Fixpoint vtol0 A n (v : vector A n) : list A :=
-  match v with
-  | vnil => nil
-  | vcons m x xs => cons x (vtol0 xs)
-  end.
-
-Lemma vtol0_length A n (v : vector A n) : length (vtol0 v) = n.
- induction v; auto.
- simpl.
- f_equal.
- trivial.
-Defined.
-
-Definition vtol A n (v : vector A n) : {l : list A | length l = n} :=
-  exist _ _ (vtol0_length v).
-
-(*
-Program Fixpoint vtol A n (v : vector A n) : {l : list A & length l = n} :=
-  match v with
-  | vnil => @existT _ _ nil _
-  | vcons m x xs => let (a, b) := vtol xs in @existT  _ _ (cons x a) _
-  end.
-*)
-
-Definition ltov A n (l : {l : list A | length l = n}) : vector A n.
- induction n.
-  apply vnil.
-  destruct l.
-  destruct x.
-   inversion e.
-   apply vcons.
-   exact a.
-   apply IHn.
-   simpl in e.
-   exists x.
-   injection e; trivial.
-Defined.
-
-Require Import Eqdep_dec.
-
- 
-
-Lemma ltov_vtol A n (v : vector A n) : ltov (vtol v) = v.
- induction v.
-  reflexivity.
-  simpl.
-  f_equal.
-  rewrite <- IHv at 8.
-  unfold vtol.
-  f_equal.
-  f_equal.
-  apply eq_proofs_unicity.
-  decide equality.
-Qed.
-
-Lemma length_list_equal A n (l1 l2 : {l : list A | length l = n}) :
-  (let (l1l, _) := l1 in let (l2l, _) := l2 in l1l = l2l) -> l1 = l2.
-intro.
-destruct l1.
-destruct l2.
-subst.
-f_equal.
-apply eq_proofs_unicity.
-decide equality.
-Qed.
-
-Lemma vtol_ltov A n (l : {l : list A | length l = n}) : vtol (ltov l) = l.
- induction n.
-  destruct l.
-  destruct x.
-   simpl.
-   unfold vtol.
-   f_equal.
-   apply eq_proofs_unicity; decide equality.
-
-   inversion e.
-
-  destruct l.
-  destruct x.
-   inversion e.
-   inversion e.
-   unfold vtol.
-   apply length_list_equal.
-   generalize (IHn (exist _ _ H0)); intro.
-   inversion H.
-   simpl; f_equal.
-   rewrite <- H2 at 3.
-   f_equal.
-   f_equal.
-   f_equal.
-   apply eq_proofs_unicity.
-   decide equality.
-Qed.
-
+Require Import LList.
 Require Import List.
 
-Definition llrev A n (l : {l : list A | length l = n}) : {l : list A | length l = n}
-
-(*
-Compute (vtol (vcons 1 (vnil _) )). *)
-*)
 
 Module InhabitationFunctionDefs.
   Open Scope bool.
@@ -500,6 +94,42 @@ Module InhabitationFunctionDefs.
   Definition empty_inhf : inhf 0 := fun _ => true.
   
 End InhabitationFunctionDefs.
+
+Section DeepPermissionsSatisfaction.
+  Import InhabitationFunctionDefs.
+(*
+  Program Fixpoint dpf_empty_inter2 n (v1 : nat) (c1 : bool)
+          (v2 : nat) (c2 : bool) (i : inhf n) : bool :=
+   |
+*)
+  Inductive dpf_empty_inter2 : forall n, (nat * bool) -> (nat * bool) -> inhf n -> Prop :=
+   | .
+
+  Inductive dpf_sat : forall n, dpf n -> inhf n -> Prop :=
+  | dpfs_and : forall n (l : dpf n)  r i, dpf_sat l i -> dpf_sat r i -> dpf_sat (dpf_and l r) i
+  | dpfs_orl : forall n (l : dpf n) r i, dpf_sat l i -> dpf_sat (dpf_or l r) i
+  | dpfs_orr : forall n (l : dpf n) r i, dpf_sat r i -> dpf_sat (dpf_or l r) i
+  | dpfs_not : forall n (f : dpf n) i, dpf_unsat f i -> dpf_sat (dpf_not f) i
+  with dpf_unsat : forall n, dpf n -> inhf n -> Prop :=
+  | dpfu_false : forall n i, dpf_unsat (dpf_false n) i
+  | dpfu_andl : forall n (l : dpf n) r i, dpf_unsat l i -> dpf_unsat (dpf_and l r) i
+  | dpfu_andr : forall n (l : dpf n) r i, dpf_unsat l i -> dpf_unsat (dpf_and l r) i
+  | dpfu_or : forall n (l : dpf n) r i, dpf_unsat l i -> dpf_unsat r i -> dpf_unsat (dpf_or l r) i
+  | dpfu_not : forall n (f : dpf n) i, dpf_sat f i -> dpf_unsat (dpf_not f) i
+  .
+
+(*
+  Variable dpf_prop : dpf 0 -> Prop.
+  Variable dpf_prov : forall (f : dpf 0), dpf_sat f (fun _ => true) -> dpf_prop f.
+  Variable dpf_nprov : forall (f : dpf 0), dpf_unsat f (fun _ => true) -> ~dpf_prop f.
+  Variable dpf_dec : forall (f : dpf 0), dpf_sat f (fun _ => true) \/ dpf_unsat f (fun _ => true).
+  Lemma dpf_prop_prov : forall f, dpf_prop f -> dpf_sat f (fun _ => true).
+  firstorder.
+  Qed.
+*)
+  
+
+
 
 
 Module Type InhabitationGrid.
@@ -626,152 +256,132 @@ Module TreeInhabitationGrid.
   end.
 
 (*  Compute (extensions (et_branch (et_branch et_some et_some) (et_branch (et_none _) (et_some)))). *)
-  
-  Lemma eval_branch n (g1 g2 : grid n) v : eval' (et_branch g1 g1) (llcons true v) = eval' g1 v.
+
+
+  Lemma eval'_branch n (g1 g2 : grid n) b v : eval' (et_branch g1 g2) (llcons b v) = if b then eval' g2 v else eval' g1 v.
    simpl.
-   f_equal.
-   apply ll_proj_eq.
-   reflexivity.
+   destruct b;
+   f_equal;
+   apply ll_proj_eq;
+   auto.
   Qed.
 
 
-  Proposition extensions_are_extensions : forall n (f : grid (S n)) (g : grid n),
-    In f (extensions g) -> is_extension_of (eval f) (eval g).
-   induction n.
-    intros.
-    destruct g; simpl in H; intuition; subst;
-     intro v; try (refine (llist_ind0 (fun v => _) _ v)); try reflexivity.
-     
-     intro v.
-     reflexivity.
-     
-    inversion f.
-   induction f; intros.
-
-(* *)
-
-
+  Lemma extension_foo : forall n (f : grid (S n)) (g : grid n),
+    In f (extensions g) -> forall v, eval' g v = eval' f (llsnoc v true) || eval' f (llsnoc v false).
    induction g; intros.
-    simpl in H; intuition; subst; intro;
-     refine (llist_ind0 (fun v => _) _ v);
-     reflexivity.
-    simpl in H; intuition; subst; intro.
-     induction v using llist_ind; auto with *.
+    simpl in *.
+    llniltac; intuition; subst; auto.
+
+    simpl in *; intuition.
+    subst; auto.
 
     simpl in H.
-     apply In_mix_with in H.
-     destruct H; destruct H; intuition; subst.
-     apply IHg1 in H0.
-     apply IHg2 in H.
-     intro.
-     clear -H0 H.
+    apply In_mix_with in H.
+    destruct H; destruct H; intuition; subst.
+    generalize (IHg1 _ H0 (lltail v)); intro.
+    generalize (IHg2 _ H (lltail v)); intro.
+    clear IHg1 IHg2 H H0.
+    replace v with (llcons (llhead v) (lltail v)) in * by auto.
+    rewrite llist_tail_cons in *.
+    rewrite eval'_branch.
+    rewrite H1, H2.
+    rewrite llist_snoc_cons.
+    rewrite llist_snoc_cons.
+    do 2 rewrite eval'_branch.
+    destruct (llhead v); auto.
+  Qed.
+  Hint Resolve extension_foo.
 
-
-     unfold eval in *.
-     unfold is_extension_of in *.
-     unfold restrict in *.
-     replace (llrev v) with (llcons (llhead (llrev v)) (lltail (llrev v))) by auto.
-     simpl.
-
-     unfold eval' at 3.
-     2: apply llist_head_tail.
-     generalize (H0 (lltail v)); intro.
-     simpl in H1.
-     induction v using llist_ind.
-     simpl.
-     unfold eval' at 1.
-     unfold
-  
-     simpl. 
-
-     reflexivity.
-     reflexivity.
-
-
-
-
-
-(* *)
-    simpl in H; intuition; subst; intro;
-     refine (match v in (vector _ n) with vnil => _ | vcons _ _ _ => id end);
-     reflexivity.
-
-    simpl in H; intuition; subst.
-     intro.
-     induction v.
-      reflexivity.
-      reflexivity.
-
-   simpl in H.
-   apply In_mix_with in H.
-   destruct H; destruct H; intuition; subst.
-   apply IHg1 in H0.
-   apply IHg2 in H.
-   intro.
-   clear -H0 H.
-
-   unfold is_extension_of in H0.
-   unfold eval in *.
-   unfold equiv in H0.
-   unfold inhf_setoid in H0.
-   set (H0 v).
-   simpl in H0.
-   simpl.
-   generalize (vreverse v).
-
-   unfold eval.
-
-   
-
-   refine (match v in (vector _ n0) with vnil => id | _ => _ end).
-   
-   inversion v.
-
-    refine 
-
-
-   induction n.
-    
-    refine (match v in (vector _ n) with vnil => id | vcons _ _ _ => _ end).
-
-
-   refine (match v with vnil => _ | vcons _ _ _ => _ end _).
-   unfold eval.
-   unfold eval'.
-   simpl.
-   refine (match v in (vector _ m) with vnil => id | vcons _ _ _ => _ end).
-
-   induction (extensions g1).
-    contradiction H.
-
-     reflexivity.
-
-
-      ID
-     refine (match v with _ => _ end).
-     set (n := 0).
-     destruct v.
-     change (vector bool n) in v.
-     assert (n = 0) by reflexivity.
-     revert n v H.
-     induction v.
-     intro.
-    subst.
-
-    induc
-   inversion H.
-   induction H.
+  Proposition extensions_are_extensions : forall n (f : grid (S n)) (g : grid n),
+    In f (extensions g) -> is_extension_of (eval f) (eval g).
    intros.
-   simpl in H.
+   intro.
+   unfold restrict.
+   unfold eval.
+   do 2 rewrite ll_cons_rev_snoc.
+   symmetry; auto.
+  Qed.
 
-  Axiom all_extensions : forall n (g : grid n) (f' : inhf (S n)), 
+
+
+
+  Proposition all_extensions : forall n (g : grid n) (f' : inhf (S n)), 
     is_extension_of f' (eval g) -> exists f,
       In f (extensions g) /\ f' == eval f.
+   induction g; intuition.
+    unfold is_extension_of in H.
+    generalize (H (llnil bool)); intro e.
+    unfold restrict in e.
+    remember (f' (llcons false (llnil _))) as b1.
+    remember (f' (llcons true (llnil _))) as b2.
+    cbv -[orb] in e.
+    exists (et_branch (if b1 then et_some else et_none 0)
+               (if b2 then et_some else et_none 0)).
+     destruct b1; destruct b2;
+     simpl; intuition;
+    revert v; apply llist_ind1; intro;
+    destruct a; (rewrite <- Heqb1 || rewrite <- Heqb2); auto.
 
+    exists (et_none (S n)).
+    simpl; intuition.
+    generalize (H (lltail v)); intro.
+    unfold restrict in H0.
+    cbv -[orb llcons lltail] in H0.
+    cbv.
+    replace v with (llcons (llhead v) (lltail v)) by auto.
+    destruct (llhead v);
+     match goal with |- ?F = false => destruct F; auto; inversion H0 end.
+    match goal with |- _ = ?F || _ => destruct F; auto end.
 
-Module Type InhabitationGridSpec (Import ig : InhabitationGrid).
-  Axiom eval_empty_true : forall v, eval empty_grid v = true.
-  Axiom eval_
-  
-  
+    unfold is_extension_of in *.
+    set (f1 := (fun l => f' (llsnoc l false)) : inhf (S n) ).
+    set (f2 := (fun l => f' (llsnoc l true)) : inhf (S n) ).
+    simpl in H.
+     assert (restrict f1 == eval g1).
+      intro.
+      unfold f1.
+      unfold restrict in *.
+      do 2 rewrite llist_snoc_cons.
+      rewrite H.
+      unfold eval.
+      rewrite <- ll_snoc_rev_cons.
+      simpl; f_equal.
+      apply ll_proj_eq; auto.
+     assert (restrict f2 == eval g2).
+      intro.
+      unfold f2.
+      unfold restrict in *.
+      do 2 rewrite llist_snoc_cons.
+      rewrite H.
+      unfold eval.
+      rewrite <- ll_snoc_rev_cons.
+      simpl; f_equal.
+      apply ll_proj_eq; auto.
+     apply IHg1 in H0.
+     apply IHg2 in H1.
+     destruct H0; destruct H1; intuition.
+     exists (et_branch x x0).
+     split.
+      simpl.
+      apply In_mix_with.
+      firstorder.
 
+      intro.
+      unfold eval.
+      replace (llrev v) with (llcons (llhead (llrev v)) (lltail (llrev v))) by auto.
+
+      rewrite llhead_cohead.
+      rewrite <- (llist_cohead_cotail) at 1.
+      rewrite eval'_branch.
+      destruct (llcohead v).
+       replace (f' (llsnoc (llcotail v) true)) with (f2 (llcotail v)) by auto.
+       rewrite H4.
+       unfold eval; f_equal; auto.
+
+       replace (f' (llsnoc (llcotail v) false)) with (f1 (llcotail v)) by auto.
+       rewrite H3.
+       unfold eval; f_equal; auto.
+  Qed.
+
+End TreeInhabitationGrid.
