@@ -303,3 +303,34 @@ Lemma ll_tail_rev_cotail A n (l : llist A (S n)) : lltail (llrev l) = llrev (llc
 Qed.
 Hint Resolve ll_tail_rev_cotail.
 
+
+Program Fixpoint llget A n (l : llist A n) m (H : n > m) : A :=
+  match l with
+  | nil => _
+  | cons x xs => match m with O => x | S m' => @llget A (match n with O => _ | S n' => n' end) xs m' _ end
+  end.
+Next Obligation.
+ destruct n.
+  contradict H; firstorder.
+  destruct l; destruct x; subst.
+   inversion e.
+   inversion Heq_l.
+Qed.
+Next Obligation.
+ destruct l.
+ simpl in *.
+ destruct x0; inversion Heq_l; subst.
+ auto.
+Qed.
+Next Obligation.
+ destruct l; destruct x0; inversion Heq_l; subst.
+ firstorder.
+Qed.
+
+ (*
+Lemma twogt1 : 2 > 1.
+firstorder.
+Qed.
+
+Compute (llget (llcons 1 (llcons 2 (llnil _))) twogt1).
+*)
