@@ -4,6 +4,7 @@ data DPF = DFalse | DAnd DPF DPF | DOr DPF DPF | DNot DPF | DEq Int Int | DC Int
         | DAll DPF | DEx DPF | DDis Int Int
 
 dImpl a b = DOr (DNot a) b
+dEmp a = DDis a a
 
 data EvalTree = ETSome | ETNone | ETBranch EvalTree EvalTree
 
@@ -25,7 +26,10 @@ dpf_eval_env d et (DAll f) = foldl (&&) True (map (\e -> dpf_eval_env (d+1) e f)
 dpf_eval_env d et (DEx f) = foldl (||) False (map (\e -> dpf_eval_env (d+1) e f) (et_splits et))
 dpf_eval_env d et (DEq n m) = eval_eq et (d - n - 1) (d - m - 1)
 dpf_eval_env d et (DDis n m) = eval_empty_inters et [(d - n - 1,False),(d - m - 1,False)]
-dpf_eval_env _ _ _ = error "Not implemented yet!"
+dpf_eval_env d et (DC n m nm) = eval_empty_inters et [(d - n - 1,False),(d - m - 1,False)] &&
+				eval_empty_inters et [(d - n - 1,True),(d - m - 1,True),(d - nm - 1,False)] &&
+				eval_empty_inters et [(d - n - 1,False),(d - nm - 1,True)] &&
+				eval_empty_inters et [(d - m - 1,False),(d - nm - 1,True)]
 
 
 eval_eq :: EvalTree -> Int -> Int -> Bool
@@ -94,6 +98,7 @@ test2 = DEx (DAll (dImpl (DAll (DDis 0 1)) (DEq 0 1)))
 test2a = DEx (DAll (DEx (dImpl (DDis 0 1) (DEq 1 2))))
 test3 = DEx (DAnd (DAll (DDis 0 1)) (DAll (dImpl (DAll (DDis 0 1)) (DEq 0 1))))
 test3a = DEx (DAll (DAll (DEx (DAnd (DDis 2 3) (DOr (DNot (DDis 1 0)) (DEq 1 3))))))
+test4 = DAll $ dImpl (DAll (DOr (dEmp 0) (DNot (DDis 0 1)))) (DAll $ DAll $ DAll $ DAll $ dImpl (DC 0 1 4) (dImpl (DC 2 3 4) (dImpl (DEq 0 2) (DEq 1 3))))
 
 trees 0 = [ETSome]
 trees n = foldl (++) [] $ map et_splits (trees (n-1))
