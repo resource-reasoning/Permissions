@@ -68,14 +68,14 @@ eval_empty (ETBranch t1 t2) n = eval_empty t1 (n-1) && eval_empty t2 (n-1)
 match_positive :: EvalTree -> Int -> Bool
 match_positive ETSome _ = error "match_positive: Tree does not evaluate all variables"
 match_positive ETNone _ = True
-match_positive (ETBranch ETSome ETNone) 0 = True
+match_positive (ETBranch _ ETNone) 0 = True
 match_positive (ETBranch _ _) 0 = False
 match_positive (ETBranch t1 t2) n = if n <= 0 then error "match_positive: Bad variable index" else match_positive t1 (n-1) && match_positive t2 (n-1)
 
 match_negative :: EvalTree -> Int -> Bool
 match_negative ETSome _ = error "match_negative: Tree does not evaluate all variables"
 match_negative ETNone _ = True
-match_negative (ETBranch ETNone ETSome) 0 = True
+match_negative (ETBranch ETNone _) 0 = True
 match_negative (ETBranch _ _) 0 = False
 match_negative (ETBranch t1 t2) n = if n <= 0 then error "match_negative: Bad variable index" else match_negative t1 (n-1) && match_negative t2 (n-1)
 
