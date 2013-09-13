@@ -8,6 +8,7 @@ Module Type ShallowIntersectionTheory.
 
   (* Equivalence on permissions *)
   Declare Instance perm_setoid : Setoid perm.
+  Axiom ax_equiv_decidable : forall a b, a == b \/ ~ a == b.
 
   (* Intersection relation on permissions *)
   Parameter inter : perm -> perm -> perm -> Prop.
@@ -226,6 +227,20 @@ Module DeepPermissionEmbedding (Import sit : ShallowIntersectionTheory).
     end.
 
 (*
+  Hint Resolve ax_equiv_decidable.
+  Hint Resolve ax_compl_decidable.
+  Hint Resolve ax_inter_decidable.
+  Hint Resolve ax_empty_decidable.
+  Proposition dpf_emb_dec n (f : dpf n) : forall l, dpf_emb f l \/ ~ dpf_emb f l.
+   induction f; firstorder.
+   apply ax_equiv_decidable.
+   apply ax_inter_decidable.
+   apply ax_empty_decidable.
+   apply ax_compl_decidable.
+   simpl.
+  *) 
+
+(*
   Program Definition tf1 : dpf 0 :=
     dpf_all (dpf_ex (dpf_eq (n0:=0) _ (n1:=1) _)).
 
@@ -297,8 +312,10 @@ Module DeepPermissionEmbedding (Import sit : ShallowIntersectionTheory).
   Definition inhf_props n (I : inhf n) (ps : llist perm n) : Prop :=
    forall l, if I l then inter_nonempty l ps else inter_empty l ps.
 
+
   Theorem dpf_true_emb n : forall (f : dpf n) (I : inhf n) (ps : llist perm n),
-        inhf_props I ps -> (dpf_true f I <-> dpf_emb f ps).
+        inhf_props I ps -> (dpf_true f I -> dpf_emb f ps) /\
+                           (~dpf_true f I -> ~dpf_emb f ps).
    induction f; intuition.
     firstorder.
     firstorder.
